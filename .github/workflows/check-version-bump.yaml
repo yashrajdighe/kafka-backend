@@ -1,0 +1,57 @@
+name: Check Version Bump on main.py Change
+
+on:
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  check-version-bump:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get list of changed files
+        id: files
+        run: |
+          git fetch origin ${{ github.base_ref }}
+          git diff --name-only origin/${{ github.base_ref }}...${{ github.sha }} > changed_files.txt
+          cat changed_files.txt
+
+      - name: Check if main.py was changed
+        id: mainpy
+        run: |
+          if grep -q '^main.py$' changed_files.txt; then
+            echo "mainpy_changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "mainpy_changed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Get version from pyproject.toml (base branch)
+        if: steps.mainpy.outputs.mainpy_changed == 'true'
+        run: |
+          git checkout origin/${{ github.base_ref }} -- pyproject.toml
+          grep '^version' pyproject.toml | head -1 > base_version.txt
+
+      - name: Get version from pyproject.toml (PR branch)
+        if: steps.mainpy.outputs.mainpy_changed == 'true'
+        run: |
+          git checkout ${{ github.sha }} -- pyproject.toml
+          grep '^version' pyproject.toml | head -1 > pr_version.txt
+
+      - name: Compare versions
+        if: steps.mainpy.outputs.mainpy_changed == 'true'
+        run: |
+          base_version=$(cat base_version.txt | awk -F'=' '{print $2}' | tr -d ' "')
+          pr_version=$(cat pr_version.txt | awk -F'=' '{print $2}' | tr -d ' "')
+          echo "Base version: $base_version"
+          echo "PR version: $pr_version"
+          if [ "$base_version" = "$pr_version" ]; then
+            echo "Version in pyproject.toml was not bumped!"
+            exit 1
+          else
+            echo "Version bump detected."
+          fi
