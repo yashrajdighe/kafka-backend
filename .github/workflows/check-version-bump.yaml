@@ -42,42 +42,43 @@ jobs:
           git checkout ${{ github.sha }} -- pyproject.toml
           grep '^version' pyproject.toml | head -1 > pr_version.txt
 
-        - name: Compare versions
-          if: steps.mainpy.outputs.mainpy_changed == 'true'
-          id: compare_versions
-          run: |
-            base_version=$(cat base_version.txt | awk -F'=' '{print $2}' | tr -d ' "')
-            pr_version=$(cat pr_version.txt | awk -F'=' '{print $2}' | tr -d ' "')
-            echo "Base version: $base_version"
-            echo "PR version: $pr_version"
-            if [ "$base_version" = "$pr_version" ]; then
-              echo "version_bumped=false" >> $GITHUB_OUTPUT
-            else
-              echo "version_bumped=true" >> $GITHUB_OUTPUT
-              echo "Version bump detected."
-            fi
+      - name: Compare versions
+        if: steps.mainpy.outputs.mainpy_changed == 'true'
+        id: compare_versions
+        run: |
+          base_version=$(cat base_version.txt | awk -F'=' '{print $2}' | tr -d ' "')
+          pr_version=$(cat pr_version.txt | awk -F'=' '{print $2}' | tr -d ' "')
+          echo "Base version: $base_version"
+          echo "PR version: $pr_version"
+          if [ "$base_version" = "$pr_version" ]; then
+            echo "version_bumped=false" >> $GITHUB_OUTPUT
+          else
+            echo "version_bumped=true" >> $GITHUB_OUTPUT
+            echo "Version bump detected."
+          fi
 
-        - name: Comment on PR if version not bumped
-          if: steps.compare_versions.outputs.version_bumped == 'false' && steps.mainpy.outputs.mainpy_changed == 'true'
-          uses: actions/github-script@v7
-          with:
-            github-token: ${{ secrets.GITHUB_TOKEN }}
-            script: |
-              github.rest.issues.createComment({
-                issue_number: context.issue.number,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                body: 'Version in pyproject.toml was not bumped after changing main.py. Please bump the version.'
-              })
-        - name: Comment on PR if version bumped
-          if: steps.compare_versions.outputs.version_bumped == 'true' && steps.mainpy.outputs.mainpy_changed == 'true'
-          uses: actions/github-script@v7
-          with:
-            github-token: ${{ secrets.GITHUB_TOKEN }}
-            script: |
-              github.rest.issues.createComment({
-                issue_number: context.issue.number,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                body: 'Version in pyproject.toml is bumped after changing main.py. Good to merge!'
-              })
+      - name: Comment on PR if version not bumped
+        if: steps.compare_versions.outputs.version_bumped == 'false' && steps.mainpy.outputs.mainpy_changed == 'true'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: 'Version in pyproject.toml was not bumped after changing main.py. Please bump the version.'
+            })
+
+      - name: Comment on PR if version bumped
+        if: steps.compare_versions.outputs.version_bumped == 'true' && steps.mainpy.outputs.mainpy_changed == 'true'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: 'Version in pyproject.toml is bumped after changing main.py. Good to merge!'
+            })
