@@ -1,5 +1,23 @@
 version: '3.8'
 services:
+  prometheus:
+    image: prom/prometheus:v3.6.0
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    volumes:
+      - ./prometheus:/etc/prometheus
+  grafana: # default creds: admin/admin
+    depends_on:
+      - prometheus
+    image: public.ecr.aws/z5i5o7e1/yashrajdighe/kafka-back-end-grafana-prod:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
   broker:
     image: apache/kafka:latest
     container_name: kafka-broker
@@ -22,6 +40,8 @@ services:
   fastapi:
     depends_on:
       - broker
+      - prometheus
+      - grafana
     container_name: kafka-backend
     build: .
     ports:

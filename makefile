@@ -5,13 +5,19 @@ APP=main:app
 UVICORN=uvicorn
 
 
-.PHONY: run
+.PHONY: run # this is only for docker-compose
 run:
-	/app/.venv/bin/fastapi run /app/main.py --port 8000 --host 0.0.0.0
+	/app/.venv/bin/fastapi run /app/main.py
+# 	/app/.venv/bin/fastapi run /app/main.py --port 8000 --host 0.0.0.0
 
 .PHONY: run-dev
 run-dev:
+	docker-compose -f ./dev/docker-compose.yaml up -d
 	uv run main.py
+
+.PHONY: stop-dev
+stop-dev:
+	docker-compose -f ./dev/docker-compose.yaml down
 
 .PHONY: install
 install:
