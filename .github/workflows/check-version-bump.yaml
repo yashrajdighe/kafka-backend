@@ -73,6 +73,12 @@ jobs:
               body: 'Version in pyproject.toml was not bumped after changing main.py. Please bump the version.'
             })
 
+      - name: Fail workflow if version not bumped
+        if: steps.compare_versions.outputs.version_bumped == 'false' && steps.mainpy.outputs.mainpy_changed == 'true'
+        run: |
+          echo "Failing workflow because version was not bumped."
+          exit 1
+
       - name: Comment on PR if version bumped
         if: steps.compare_versions.outputs.version_bumped == 'true' && steps.mainpy.outputs.mainpy_changed == 'true'
         uses: actions/github-script@v7
