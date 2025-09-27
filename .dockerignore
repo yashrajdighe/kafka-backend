@@ -1,4 +1,4 @@
-# .dockerignore
+# .dockerignore for fastapi and python
 __pycache__/
 *.pyc
 *.pyo

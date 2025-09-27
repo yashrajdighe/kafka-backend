@@ -2,7 +2,7 @@ import logging
 import uvicorn
 import os
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import Request
@@ -10,6 +10,9 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from kafka.admin import KafkaAdminClient, NewTopic
 from kafka import KafkaProducer, KafkaConsumer
+
+from prometheus_client import Counter, Histogram, make_asgi_app, CollectorRegistry
+import time
 
 # Simple logger configuration
 logging.basicConfig(level=logging.INFO)
@@ -22,6 +25,7 @@ app = FastAPI()
 
 origins = [
     "http://localhost:5500",  # VSCode live server
+    "http://localhost:9090",  # Prometheus server
 ]
 
 app.add_middleware(
@@ -31,6 +35,40 @@ app.add_middleware(
     allow_methods=["*"],  # Allow all HTTP methods (GET, POST, PUT, DELETE, etc.)
     allow_headers=["*"],  # Allow all headers
 )
+
+# expose prometheus metrics at /metrics endpoint
+
+# Create a custom Prometheus registry to avoid duplicate registration on reload
+PROM_REGISTRY = CollectorRegistry()
+
+REQUEST_COUNT = Counter(
+    "http_requests_total",
+    "Total number of HTTP requests",
+    ["method", "endpoint"],
+    registry=PROM_REGISTRY
+)
+
+REQUEST_LATENCY = Histogram(
+    "http_request_duration_seconds",
+    "Request latency in seconds",
+    ["method", "endpoint"],
+    registry=PROM_REGISTRY
+)
+
+# Middleware for request metrics
+@app.middleware("http")
+async def prometheus_middleware(request: Request, call_next):
+    start_time = time.time()
+
+    response = await call_next(request)
+
+    REQUEST_COUNT.labels(request.method, request.url.path).inc()
+    REQUEST_LATENCY.labels(request.method, request.url.path).observe(time.time() - start_time)
+
+    return response
+
+metrics_app = make_asgi_app(registry=PROM_REGISTRY)
+app.mount("/metrics", metrics_app)
 
 # Get Kafka bootstrap server from environment variable
 KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
@@ -265,7 +303,7 @@ def consume_messages(
 
 
 def main():
-    uvicorn.run("main:app", host="localhost", port=8000, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
 
 
 if __name__ == "__main__":
