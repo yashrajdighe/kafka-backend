@@ -1,7 +1,7 @@
 FROM python:3.12-slim
 
 # Install uv.
-COPY --from=ghcr.io/astral-sh/uv:0.8.19 /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.12.13 /uv /uvx /bin/
 
 # Copy the application into the container.
 COPY . /app
